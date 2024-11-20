@@ -1,8 +1,9 @@
 # This Python 3 environment comes with many helpful analytics libraries installed
 # It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python
 # For example, here's several helpful packages to load
-
-
+import wandb
+import random
+import math
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import torch
@@ -23,6 +24,8 @@ import torch
 import tqdm
 import re
 import copy
+from train import train_model, evaluate_model, compute_accuracy
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'\nDevice being used: ', device, '\n')
 SEED = 30
@@ -65,6 +68,7 @@ def clean(data):
     stripped_text_dataset['review'].apply(strip_text)
     stripped_text_dataset.head()
 
+
     
 def main():
     #print(IMDB_dataset.head())
@@ -83,9 +87,18 @@ def main():
     Model Prep
     """
     model = create_model(label_dict)
+    model.to(device)
+
+    """
+    Training
+    """
     optimizer = AdamW(model.parameters(), lr=1e-3, eps=1e-8, weight_decay=0.01)
     epochs = 1
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * epochs)
+    train_model(model, train_dataloader, optimizer, scheduler, epochs)
+    predictions, true_labels = evaluate_model(model, test_dataloader)
+    accuracy = compute_accuracy(predictions, true_labels)
 
+    print(f'Accuracy: {accuracy * 100:.2f}%')
 if __name__ == '__main__':
     main()
