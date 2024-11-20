@@ -24,16 +24,32 @@ import torch
 import tqdm
 import re
 import copy
-from train import train_model, evaluate_model, compute_accuracy
+from train import train_model, evaluate_model, compute_accuracy, generate_report
+import kaggle
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'\nDevice being used: ', device, '\n')
 SEED = 30
 EPOCHS = 10
+BATCH_SIZE = 8
+LR = 1e-3
+WEIGHT_DECAY = 0.01
+MAX_TOKEN_LENGTH = 64
+DATASET_PATH = "./data/"
 torch.manual_seed(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
-IMDB_dataset = pd.read_csv("/kaggle/input/imdb-dataset-of-50k-movie-reviews/IMDB Dataset.csv")
+wandb.init(
+    project="245 Final Project",
+    entity="ehaddad2",    
+    config={
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "learning_rate": LR,
+        "weight_decay": WEIGHT_DECAY,
+        "max_token_length": MAX_TOKEN_LENGTH
+    }
+)
 
 def preprocess_data(df):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -60,14 +76,6 @@ def split_dataset(input_ids, attention_masks, labels):
     test_size = len(dataset) - train_size
     return random_split(dataset, [train_size, test_size])
 
-def clean(data):
-    def strip_text(text):
-        text = re.sub(r"(<[^>]+>)|(http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)", "", text)
-        return text
-    stripped_text_dataset = copy.deepcopy(data)
-    stripped_text_dataset['review'].apply(strip_text)
-    stripped_text_dataset.head()
-
 
     
 def main():
@@ -76,7 +84,6 @@ def main():
     """
     Data Preprocessing/Prep
     """
-    dataset = clean(IMDB_dataset)
     input_ids, attention_masks, labels, label_dict = preprocess_data(dataset)
     train_dataset, test_dataset = split_dataset(input_ids, attention_masks, labels)
     train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=8)
@@ -93,12 +100,15 @@ def main():
     Training
     """
     optimizer = AdamW(model.parameters(), lr=1e-3, eps=1e-8, weight_decay=0.01)
-    epochs = 1
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * epochs)
-    train_model(model, train_dataloader, optimizer, scheduler, epochs)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * EPOCHS)
+    train_model(model, train_dataloader, optimizer, scheduler, EPOCHS)
     predictions, true_labels = evaluate_model(model, test_dataloader)
     accuracy = compute_accuracy(predictions, true_labels)
 
     print(f'Accuracy: {accuracy * 100:.2f}%')
+    print(generate_report(predictions=predictions, true_labels=true_labels, label_dict=label_dict))
+    torch.save(model.state_dict(), "bert_imdb_model.pth")
+    wandb.save("bert_imdb_model.pth")
+    wandb.finish()
 if __name__ == '__main__':
     main()
