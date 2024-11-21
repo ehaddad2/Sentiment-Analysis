@@ -41,7 +41,7 @@ random.seed(SEED)
 np.random.seed(SEED)
 wandb.init(
     project="245 Final Project",
-    entity="ehaddad2",    
+    entity="ehaddad2-university-of-rochester-org",    
     config={
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,

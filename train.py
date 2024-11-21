@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import random
 from sklearn.metrics import accuracy_score, classification_report
+from tqdm import tqdm
 SEED = 30
 torch.manual_seed(SEED)
 random.seed(SEED)
@@ -14,10 +15,11 @@ def compute_accuracy(predictions, true_labels):
     return accuracy_score(flat_true_labels, predicted_label_ids)
 
 def train_model(model, train_dataloader, optimizer, scheduler, epochs, device, wandb):
-    for epoch in range(epochs):
-        total_train_loss = 0
-        for step, input, mask, label in enumerate(train_dataloader):
-            input, mask, label = input.to(device), mask.to(device),label.to(device)
+    for epoch in tqdm(range(epochs)):
+        total_train_loss = 0 
+        for step, batch in enumerate(train_dataloader):
+
+            input, mask, label = batch[0].to(device), batch[1].to(device),batch[2].to(device)
             model.zero_grad()
             outputs = model(input, attention_mask=mask, labels=label)    
             loss = outputs.loss
@@ -27,8 +29,6 @@ def train_model(model, train_dataloader, optimizer, scheduler, epochs, device, w
             optimizer.step()
             scheduler.step()
 
-            if step % 100 == 0:
-                print('\r [epoch: %03d][iter: %04d][loss: %.6f]'%(epoch+1, step, loss.item()))
         avg_train_loss = total_train_loss / len(train_dataloader)
         wandb.log({"epoch": epoch + 1, "avg_train_loss": avg_train_loss})
         print(f'Average Training Loss: {avg_train_loss:.4f}')
@@ -38,8 +38,7 @@ def evaluate_model(model, test_dataloader, device, wandb):
     predictions, true_labels = [], []
 
     for batch in test_dataloader:
-        input, mask, label = input.to(device), mask.to(device),label.to(device)
-
+        input, mask, label = batch[0].to(device), batch[1].to(device),batch[2].to(device)
         with torch.no_grad():
             outputs = model(input, attention_mask=mask)
             logits = outputs.logits
