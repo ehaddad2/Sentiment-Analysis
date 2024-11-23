@@ -29,8 +29,9 @@ LR = 1e-3
 WEIGHT_DECAY = 0.01
 MAX_TOKEN_LENGTH = 308 #mean token length
 DATASET_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/IMDB Dataset.csv"
-SAVE_DS_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/OG_Dataset_pred.csv"
-MODEL_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/models/BertLP0.pth"
+SAVE_DS_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/MLP1+UncleanDataset_pred.csv"
+MODEL_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/models/MLP1+UncleanDataset.pth"
+BACKBONE_NAME = "bert-base-uncased"
 torch.manual_seed(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
@@ -38,7 +39,7 @@ np.random.seed(SEED)
 wandb.init(
     project="245 Final Project",
     entity="achen99-university-of-rochester",
-    name="OG_Dataset",
+    name="MLP1+UncleanedDataset",
     config={
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,
@@ -48,18 +49,14 @@ wandb.init(
     }
 )
 
-def create_model(label_dict):
-    model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=len(label_dict))
-    return model
-
 def split_dataset(input_ids, attention_masks, labels):
     dataset = TensorDataset(input_ids, attention_masks, labels)
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
     return random_split(dataset, [train_size, test_size], generator=torch.Generator().manual_seed(SEED))
 
-def preprocess_data(df, max_token_length):
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+def preprocess_data(df, max_token_length, backbone_name):
+    tokenizer = BertTokenizer.from_pretrained(backbone_name)
     labels = df["sentiment"].unique().tolist()
     label_to_num = {label: i for i, label in enumerate(labels)}
     num_to_label = {i:label for i, label in enumerate(labels)}
@@ -79,12 +76,12 @@ def main():
     Model Prep
     """
     saved_model = False
-    model = models.BertLP0(out_dim=2)
+    model = models.BertLP1(backbone_name=BACKBONE_NAME, MLP_depth=1)
 
     if os.path.exists(MODEL_PATH):
         print("\nFound saved model, using that")
-        saved_model = True
-        model.load_state_dict(torch.load(MODEL_PATH))
+        #saved_model = True
+       # model.load_state_dict(torch.load(MODEL_PATH))
     else: print("\nNo saved model found, training from scratch")
     model.to(device)
 
@@ -92,7 +89,7 @@ def main():
     Data Preprocessing/Prep
     """
     dataset = pd.read_csv(DATASET_PATH)
-    inputs, attention_masks, labels, label_to_num, num_to_label = preprocess_data(dataset, MAX_TOKEN_LENGTH)
+    inputs, attention_masks, labels, label_to_num, num_to_label = preprocess_data(dataset, MAX_TOKEN_LENGTH, BACKBONE_NAME)
     train_dataset, test_dataset = split_dataset(inputs, attention_masks, labels)
     train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=os.cpu_count())
     test_dataloader = DataLoader(test_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=os.cpu_count())
@@ -103,7 +100,6 @@ def main():
     optimizer = AdamW(model.parameters(), lr=1e-3, eps=1e-8, weight_decay=0.01)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=len(train_dataloader) * EPOCHS)
     if not saved_model: train_model(model, train_dataloader, test_dataloader, optimizer, scheduler, EPOCHS, device=device, wandb=wandb)
-    
     
     """
     Eval

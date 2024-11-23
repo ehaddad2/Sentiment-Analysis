@@ -30,7 +30,7 @@ def evaluate_model(model, test_dataloader, device, wandb):
         for batch in test_dataloader:
             input, mask, label = batch[0].to(device), batch[1].to(device),batch[2].to(device)
             
-            outputs = model(input, attention_mask=mask, label=label)
+            outputs = model(input, attention_mask=mask, labels=label)
             logits = outputs.logits
             loss = outputs.loss
             total_test_loss += loss.item()
@@ -58,7 +58,7 @@ def train_model(model, train_dataloader, test_dataloader, optimizer, scheduler, 
 
             input, mask, label = batch[0].to(device), batch[1].to(device),batch[2].to(device)
             model.zero_grad()
-            outputs = model(input, attention_mask=mask, label=label)    
+            outputs = model(input, attention_mask=mask, labels=label)    
             loss = outputs.loss
             logits = outputs.logits
             preds = torch.argmax(logits, dim=1)
@@ -73,8 +73,8 @@ def train_model(model, train_dataloader, test_dataloader, optimizer, scheduler, 
         avg_train_loss = total_train_loss / len(train_dataloader)
         avg_train_accuracy = correct / total
         _,_,avg_test_loss, avg_test_accuracy = evaluate_model(model, test_dataloader, device, wandb)
-        wandb.log({"avg_train_loss": avg_train_loss, "avg_train_acc":avg_train_accuracy})
-        wandb.log({"avg_test_loss": avg_test_loss, "avg_test_acc":avg_test_accuracy})
+        wandb.log({"avg_train_loss": avg_train_loss, "avg_train_acc":avg_train_accuracy}, step=epoch)
+        wandb.log({"avg_test_loss": avg_test_loss, "avg_test_acc":avg_test_accuracy}, step=epoch)
         print(f'Average Training Loss: {avg_train_loss:.4f}')
 
 
@@ -100,7 +100,7 @@ def predict_df(model, df, inputs, attention_masks, labels, num_to_label, device,
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Predicting DF: "):
             input, attention_mask, labels = batch[0].to(device), batch[1].to(device), batch[2].to(device)
-            outputs = model(x=input, attention_mask=attention_mask, label=labels)
+            outputs = model(x=input, attention_mask=attention_mask, labels=labels)
             logits = outputs.logits
             batch_predictions = torch.argmax(logits, dim=1).cpu().tolist()
             predictions.extend(batch_predictions)
