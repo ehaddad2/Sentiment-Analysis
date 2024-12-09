@@ -64,25 +64,35 @@ class BertLP1(nn.Module):
 
 
 class BertLPA0(nn.Module):
-    def __init__(self, backbone_name, hidden_size=768, dropout_prob=0.1, out_dim=2):
+    def __init__(self, backbone_name, MLP_depth=0, hidden_dim=768, dropout_prob=0.1, out_dim=2):
         super().__init__()
+
+        """
+        Attn
+        """
         self.backbone = BertModel.from_pretrained(backbone_name)
-        if backbone_name == "google/bert_uncased_L-8_H-512_A-8": hidden_size = 512
+        if backbone_name == "google/bert_uncased_L-8_H-512_A-8": hidden_dim = 512
         for param in self.backbone.parameters():
             param.requires_grad = False
-            
+        
         self.attention = nn.MultiheadAttention(
-            embed_dim=hidden_size,
+            embed_dim=hidden_dim,
             num_heads=1,
             dropout=dropout_prob,
             batch_first=True)
-        
-        # Layer normalization and dropout
-        self.layer_norm = nn.LayerNorm(hidden_size)
+        self.layer_norm = nn.LayerNorm(hidden_dim)
         self.dropout = nn.Dropout(dropout_prob)
-        
-        # Binary classifier
-        self.classifier = nn.Sequential(nn.Linear(hidden_size, out_dim))
+
+        """
+        MLP
+        """
+        layers = []
+        for _ in range(MLP_depth):
+            layers.append(nn.Linear(hidden_dim, hidden_dim))
+            layers.append(nn.ReLU())
+            layers.append(nn.Dropout(0.1))
+        layers.append(nn.Linear(hidden_dim, out_dim))
+        self.mlp = nn.Sequential(*layers)
 
     def forward(self, x, attention_mask=None, labels=None):
         x = self.backbone(input_ids=x,attention_mask=attention_mask,return_dict=True)
@@ -91,16 +101,9 @@ class BertLPA0(nn.Module):
         attention_output, _ = self.attention(x,x,x,None)
         attention_output = self.layer_norm(attention_output + x)
         attention_output = self.dropout(attention_output)
-        
-        # Global average pooling
-       # pooled_output = torch.mean(attention_output, dim=1)  # Shape: (batch_size, hidden_size)
-        
-        # Binary classification
         logits = attention_output[:, 0, :]
-        logits = self.classifier(logits)
+        logits = self.mlp(logits)
         loss_fn = nn.CrossEntropyLoss()
         loss = loss_fn(logits, labels)
         
         return Outputs(loss, logits)
-
-

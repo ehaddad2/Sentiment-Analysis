@@ -16,21 +16,20 @@ import math
 import torch
 from tqdm import tqdm
 from train import train_model, evaluate_model, compute_accuracy, generate_report, predict_df
-from torchinfo import summary
 import models
 import os
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'\nDevice being used: ', device, '\n')
 SEED = 30
-EPOCHS = 5
+EPOCHS = 15
 BATCH_SIZE = 64
 LR = 1e-3
 WEIGHT_DECAY = 0.01
 MAX_TOKEN_LENGTH = 308 #mean token length
 DATASET_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/IMDB Dataset.csv"
-SAVE_DS_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/MLP1+UncleanDataset_pred.csv"
-MODEL_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/models/MLP1+UncleanDataset.pth"
+#SAVE_DS_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/data/Attn+MLP2+CleanDataset_pred.csv"
+MODEL_PATH = "/home/elias/Deep Learning/Projects/NLP/Sentiment-Analysis/models/Attn+MLP1+UncleanedDataset.pth"
 BACKBONE_NAME = "bert-base-uncased"
 torch.manual_seed(SEED)
 random.seed(SEED)
@@ -39,7 +38,7 @@ np.random.seed(SEED)
 wandb.init(
     project="245 Final Project",
     entity="achen99-university-of-rochester",
-    name="MLP1+UncleanedDataset",
+    name="Attn+MLP1+UncleanedDataset_funrun",
     config={
         "epochs": EPOCHS,
         "batch_size": BATCH_SIZE,
@@ -76,12 +75,12 @@ def main():
     Model Prep
     """
     saved_model = False
-    model = models.BertLP1(backbone_name=BACKBONE_NAME, MLP_depth=1)
+    model = models.BertLPA0(backbone_name=BACKBONE_NAME, MLP_depth=1)
 
     if os.path.exists(MODEL_PATH):
         print("\nFound saved model, using that")
-        #saved_model = True
-       # model.load_state_dict(torch.load(MODEL_PATH))
+        saved_model = True
+        model.load_state_dict(torch.load(MODEL_PATH))
     else: print("\nNo saved model found, training from scratch")
     model.to(device)
 
@@ -109,7 +108,7 @@ def main():
     accuracy = compute_accuracy(predictions, true_labels)
     print(f'Accuracy: {accuracy * 100:.2f}%')
     print(generate_report(predictions=predictions, true_labels=true_labels, label_dict=label_to_num))
-    predict_df(model, dataset, inputs, attention_masks, labels, num_to_label, device, batch_size=500).to_csv(SAVE_DS_PATH, index=False)
+    #predict_df(model, dataset, inputs, attention_masks, labels, num_to_label, device, batch_size=500).to_csv(SAVE_DS_PATH, index=False)
     if not saved_model:
         torch.save(model.state_dict(), MODEL_PATH)
         wandb.save(MODEL_PATH)

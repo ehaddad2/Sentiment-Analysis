@@ -73,8 +73,8 @@ def train_model(model, train_dataloader, test_dataloader, optimizer, scheduler, 
         avg_train_loss = total_train_loss / len(train_dataloader)
         avg_train_accuracy = correct / total
         _,_,avg_test_loss, avg_test_accuracy = evaluate_model(model, test_dataloader, device, wandb)
-        wandb.log({"avg_train_loss": avg_train_loss, "avg_train_acc":avg_train_accuracy}, step=epoch)
-        wandb.log({"avg_test_loss": avg_test_loss, "avg_test_acc":avg_test_accuracy}, step=epoch)
+        wandb.log({"avg_train_loss": avg_train_loss, "avg_train_acc":avg_train_accuracy}, step=epoch+1)
+        wandb.log({"avg_test_loss": avg_test_loss, "avg_test_acc":avg_test_accuracy}, step=epoch+1)
         print(f'Average Training Loss: {avg_train_loss:.4f}')
 
 
