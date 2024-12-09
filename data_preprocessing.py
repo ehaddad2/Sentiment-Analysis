@@ -11,6 +11,7 @@ from nltk.stem import PorterStemmer
 
 IMDB_dataset = pd.read_csv("IMDB Dataset.csv")
 
+
 #1. Case Normalization
 def normalize_case(text):
     text = text.lower()
