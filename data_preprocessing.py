@@ -12,7 +12,6 @@ from nltk.stem import PorterStemmer
 IMDB_dataset = pd.read_csv("IMDB Dataset.csv")
 
 
-
 #1. Case Normalization
 def normalize_case(text):
     text = text.lower()
@@ -94,4 +93,3 @@ def remove_extra_space(text):
 no_extra_space = copy.deepcopy(IMDB_dataset)
 no_extra_space['review'] = no_extra_space['review'].apply(remove_extra_space)
 no_extra_space.to_csv("no_extra_space.csv", index=False)
-
